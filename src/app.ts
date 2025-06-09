@@ -1,0 +1,83 @@
+import express, { Request, Response, NextFunction } from 'express';
+import dotenv from 'dotenv';
+import prisma from './prismaClient'; // Import prisma client
+
+// Load environment variables from .env file
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware to parse JSON bodies
+app.use(express.json());
+
+// Basic root route for health check
+app.get('/api', (req: Request, res: Response) => {
+  res.status(200).json({ message: 'Appointment System API is running!' });
+});
+
+// Placeholder for future routes (to be added in subsequent steps)
+import authRoutes from './routes/authRoutes';
+import appointmentRoutes from './routes/appointmentRoutes';
+import adminRoutes from './routes/adminRoutes';
+// import appointmentRoutes from './routes/appointmentRoutes'; // This was a pre-existing commented line, can stay or go, let's keep for now.
+
+app.use('/api/auth', authRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/admin', adminRoutes);
+// app.use('/api/appointments', appointmentRoutes); // This was a pre-existing commented line, can stay or go, let's keep for now.
+
+
+// Global error handling middleware
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  console.error(\`[\${new Date().toISOString()}] ERROR: \${err.message}\`);
+  console.error(err.stack);
+
+  // Default to 500 server error
+  let statusCode = 500;
+  let errorMessage = 'An unexpected error occurred.';
+
+  // Handle Prisma errors specifically if needed (example)
+  // if (err instanceof Prisma.PrismaClientKnownRequestError) {
+  //   // Specific Prisma error codes can be handled here
+  //   // e.g., P2002 for unique constraint violations
+  //   if (err.code === 'P2002') {
+  //     statusCode = 409; // Conflict
+  //     errorMessage = 'A record with this identifier already exists.';
+  //     if (err.meta && err.meta.target) {
+  //       errorMessage = \`Unique constraint failed on the field(s): \${(err.meta.target as string[]).join(', ')}\`
+  //     }
+  //   }
+  // } else if (err.name === 'ValidationError') { // Example for custom validation errors
+  //   statusCode = 400;
+  //   errorMessage = err.message;
+  // }
+
+
+  res.status(statusCode).json({
+    status: 'error',
+    message: errorMessage,
+    // Optionally include stack in development
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+  });
+});
+
+
+// Start the server
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, async () => {
+    console.log(\`Server is running on http://localhost:\${PORT}\`);
+    try {
+      // Test the database connection on startup by making a simple query
+      // This is optional as Prisma connects lazily, but good for early feedback
+      await prisma.\$queryRaw\`SELECT 1\`;
+      console.log('Successfully connected to the database via Prisma.');
+    } catch (error) {
+      console.error('Failed to connect to the database:', error);
+      // Optionally, exit the process if DB connection is critical for startup
+      // process.exit(1);
+    }
+  });
+}
+
+export default app; // Export app for potential supertest testing

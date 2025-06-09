@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String        @id @default(cuid())
+  name        String
+  email       String        @unique
+  phone       String?
+  password    String
+  role        Role          @default(USER)
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  director    Director?     // If user is a director
+  assistant   Assistant?    // If user is an assistant
+
+  // For public users creating appointments
+  submittedAppointments Appointment[] @relation("SubmittedByPublicUser")
+
+  // For assistants/directors verifying appointments
+  processedAppointments Appointment[] @relation("ProcessedByUser")
+
+
+  @@map("users")
+}
+
+enum Role {
+  USER      // Public user submitting a request
+  ASSISTANT
+  DIRECTOR
+  ADMIN     // Admin user
+}
+
+model Director {
+  id              String        @id @default(cuid())
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String        @unique @map("user_id")
+  department      String
+  officeLocation  String        @map("office_location")
+
+  assistants      Assistant[]   // Assistants managed by this director
+  appointments    Appointment[] // Appointments scheduled for this director
+
+  @@map("directors")
+}
+
+model Assistant {
+  id          String    @id @default(cuid())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String    @unique @map("user_id")
+
+  director    Director  @relation(fields: [directorId], references: [id], onDelete: Cascade)
+  directorId  String    @map("director_id")
+
+  @@map("assistants")
+}
+
+model Appointment {
+  id            String    @id @default(cuid())
+  visitorName   String    @map("visitor_name")
+  email         String
+  phone         String?
+  preferredDate DateTime  @map("preferred_date")
+  message       String?
+
+  director      Director  @relation(fields: [directorId], references: [id])
+  directorId    String    @map("director_id")
+
+  status        AppointmentStatus @default(PENDING)
+
+  // Public user who submitted the appointment
+  submittedBy   User?     @relation("SubmittedByPublicUser", fields: [submittedById], references: [id])
+  submittedById String?   @map("submitted_by_id")
+
+  // User (Assistant/Director) who verified/rejected the appointment
+  processedBy   User?     @relation("ProcessedByUser", fields: [processedById], references: [id])
+  processedById String?   @map("processed_by_id")
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@map("appointments")
+}
+
+enum AppointmentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
