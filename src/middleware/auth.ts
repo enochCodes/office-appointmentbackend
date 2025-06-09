@@ -44,18 +44,20 @@ export const generateToken = (userId: string, role: Role): string => {
  * Middleware to authenticate a token from the Authorization header.
  * Verifies the token and attaches user information (id, role) to req.user.
  */
-export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
+export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
 
   if (!token) {
-    return res.status(401).json({ message: 'Access denied. No token provided.' });
+    res.status(401).json({ message: 'Access denied. No token provided.' });
+    return;
   }
 
   if (!JWT_SECRET) {
     // This check is crucial if process.exit(1) was not used above.
     console.error("JWT_SECRET is not configured. Cannot verify token.");
-    return res.status(500).json({ message: 'Internal server error: JWT secret not configured.' });
+    res.status(500).json({ message: 'Internal server error: JWT secret not configured.' });
+    return;
   }
 
   try {
@@ -75,15 +77,18 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
-      return res.status(401).json({ message: 'Token expired. Please log in again.' });
+      res.status(401).json({ message: 'Token expired. Please log in again.' });
+      return;
     }
     if (error instanceof jwt.JsonWebTokenError) {
       // Covers malformed tokens, invalid signatures, etc.
-      return res.status(403).json({ message: 'Invalid token. Authentication failed.' });
+      res.status(403).json({ message: 'Invalid token. Authentication failed.' });
+      return;
     }
     // Fallback for other unexpected errors during token verification
     console.error("Error during token verification:", error);
-    return res.status(500).json({ message: 'Failed to authenticate token due to an internal error.' });
+    res.status(500).json({ message: 'Failed to authenticate token due to an internal error.' });
+    return;
   }
 };
 
@@ -96,14 +101,16 @@ export const authorizeRole = (allowedRoles: Role[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user || typeof req.user.role === 'undefined') {
       // This state implies authenticateToken might not have run or failed to attach user
-      return res.status(401).json({ message: 'Authentication token is valid, but user information is missing.' });
+      res.status(401).json({ message: 'Authentication token is valid, but user information is missing.' });
+      return;
     }
 
     if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({
-        message: `Access denied. Your role ('\${req.user.role}') is not authorized to access this resource.`,
+      res.status(403).json({
+        message: `Access denied. Your role ('${req.user.role}') is not authorized to access this resource.`,
         requiredRoles: allowedRoles,
       });
+      return;
     }
     next(); // User has one of the allowed roles
   };

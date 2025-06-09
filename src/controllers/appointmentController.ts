@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
-import appointmentService, { PublicAppointmentCreationData } from '../services/appointmentService';
+import { appointmentService, PublicAppointmentCreationData } from '../services/appointmentService';
 import { AppointmentStatus } from '@prisma/client'; // For later use
 
 export const appointmentController = {

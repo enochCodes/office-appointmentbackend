@@ -1,10 +1,17 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { body, param } from 'express-validator';
 import appointmentController from '../controllers/appointmentController';
 // import { authenticateToken, authorizeRole } from '../middleware/auth'; // To be used in Step 10
 // import { Role } from '@prisma/client'; // To be used in Step 10
 
 const router = Router();
+
+// Helper to wrap async route handlers for Express compatibility
+function asyncHandler(fn: any) {
+  return function (req: Request, res: Response, next: NextFunction) {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
 
 // --- Public Route ---
 // POST /api/appointments - Public endpoint to submit a new appointment
@@ -29,7 +36,7 @@ router.post(
     // Consider adding .isCUID() if your IDs are CUIDs and you want strict format validation
     // .isCUID().withMessage('Director ID must be a valid CUID.')
   ],
-  appointmentController.submitPublicAppointment
+  asyncHandler(appointmentController.submitPublicAppointment)
 );
 
 

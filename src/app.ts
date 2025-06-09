@@ -30,7 +30,7 @@ app.use('/api/admin', adminRoutes);
 
 // Global error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(\`[\${new Date().toISOString()}] ERROR: \${err.message}\`);
+  console.error(`[${new Date().toISOString()}] ERROR: ${err.message}`);
   console.error(err.stack);
 
   // Default to 500 server error
@@ -66,11 +66,11 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 // Start the server
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, async () => {
-    console.log(\`Server is running on http://localhost:\${PORT}\`);
+    console.log(`Server is running on http://localhost:${PORT}`);
     try {
       // Test the database connection on startup by making a simple query
       // This is optional as Prisma connects lazily, but good for early feedback
-      await prisma.\$queryRaw\`SELECT 1\`;
+      await prisma.$queryRaw`SELECT 1`;
       console.log('Successfully connected to the database via Prisma.');
     } catch (error) {
       console.error('Failed to connect to the database:', error);

@@ -27,7 +27,7 @@ export const appointmentService = {
       where: { id: data.directorId },
     });
     if (!director) {
-      throw new Error(\`Validation error: Director with ID '\${data.directorId}' not found.\`);
+      throw new Error(`Validation error: Director with ID '${data.directorId}' not found.`);
     }
 
     try {
@@ -42,7 +42,7 @@ export const appointmentService = {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         // Handle known Prisma errors, e.g., foreign key constraint if directorId was invalid in a race condition
         if (e.code === 'P2003') { // Foreign key constraint failed
-             throw new Error(\`Database error: Invalid director ID '\${data.directorId}'.\`);
+             throw new Error(`Database error: Invalid director ID '${data.directorId}'.`);
         }
       }
       console.error("Error in createPublicAppointment:", e);
@@ -58,7 +58,7 @@ export const appointmentService = {
    */
   async getUnverifiedAppointmentsForDirector(directorId: string): Promise<Appointment[]> {
     // Placeholder: Real implementation in Step 10
-    console.log(\`Fetching unverified appointments for director: \${directorId}\`);
+    console.log(`Fetching unverified appointments for director: ${directorId}`);
     return [];
   },
 
@@ -68,7 +68,7 @@ export const appointmentService = {
    */
   async verifyAppointment(appointmentId: string, verifierUserId: string): Promise<Appointment | null> {
     // Placeholder: Real implementation in Step 10
-    console.log(\`Verifying appointment: \${appointmentId} by user: \${verifierUserId}\`);
+    console.log(`Verifying appointment: ${appointmentId} by user: ${verifierUserId}`);
     return null;
   },
 
@@ -78,7 +78,7 @@ export const appointmentService = {
    */
   async rejectAppointment(appointmentId: string, verifierUserId: string): Promise<Appointment | null> {
     // Placeholder: Real implementation in Step 10
-    console.log(\`Rejecting appointment: \${appointmentId} by user: \${verifierUserId}\`);
+    console.log(`Rejecting appointment: ${appointmentId} by user: ${verifierUserId}`);
     return null;
   },
 
@@ -88,7 +88,7 @@ export const appointmentService = {
    */
   async getCalendarForDirector(directorId: string): Promise<Appointment[]> {
     // Placeholder: Real implementation in Step 10
-    console.log(\`Fetching calendar for director: \${directorId}\`);
+    console.log(`Fetching calendar for director: ${directorId}`);
     return [];
   },
 };

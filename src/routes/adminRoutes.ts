@@ -1,10 +1,17 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { body } from 'express-validator';
 import adminController from '../controllers/adminController';
 import { authenticateToken, authorizeRole } from '../middleware/auth';
 import { Role } from '@prisma/client';
 
 const router = Router();
+
+// Helper to wrap async route handlers for Express compatibility
+function asyncHandler(fn: any) {
+  return function (req: Request, res: Response, next: NextFunction) {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
 
 // Apply authentication and ADMIN role authorization to all routes in this file
 router.use(authenticateToken);
@@ -21,7 +28,7 @@ router.post(
     body('role').isIn(Object.values(Role))
       .withMessage('Invalid role specified. Valid roles are: ' + Object.values(Role).join(', ')),
   ],
-  adminController.createUser
+  asyncHandler(adminController.createUser)
 );
 
 // POST /api/admin/directors - Create a director profile for an existing user (who should have DIRECTOR role)
@@ -32,7 +39,7 @@ router.post(
     body('department').notEmpty().withMessage('Department is required.').trim().escape(),
     body('officeLocation').notEmpty().withMessage('Office location is required.').trim().escape(),
   ],
-  adminController.createDirector
+  asyncHandler(adminController.createDirector)
 );
 
 // POST /api/admin/assistants - Create an assistant profile for an existing user (who should have ASSISTANT role)
@@ -42,7 +49,7 @@ router.post(
     body('userId').notEmpty().withMessage('User ID is required.').isString().trim(), // .isCUID() if applicable
     body('directorId').notEmpty().withMessage('Director ID for linking is required.').isString().trim(), // .isCUID()
   ],
-  adminController.createAssistant
+  asyncHandler(adminController.createAssistant)
 );
 
 export default router;

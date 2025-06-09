@@ -22,7 +22,7 @@ export const authController = {
       // Ensure user.password is not undefined before passing to comparePassword
       if (typeof user.password !== 'string') {
         // This case should ideally not happen if users are created correctly with passwords
-        console.error(\`User \${user.id} has no password set.\`);
+        console.error(`User ${user.id} has no password set.`);
         return res.status(500).json({ message: 'Server error: User account improperly configured.' });
       }
 
@@ -33,7 +33,7 @@ export const authController = {
 
       // Ensure user.id and user.role are valid before generating token
       if (!user.id || typeof user.role === 'undefined') {
-         console.error(\`User \${user.id} has missing id or role.\`);
+         console.error(`User ${user.id} has missing id or role.`);
         return res.status(500).json({ message: 'Server error: User account data incomplete.' });
       }
 
@@ -74,5 +74,3 @@ export const authController = {
     }
   }
 };
-
-export default authController;
