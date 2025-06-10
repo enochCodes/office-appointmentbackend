@@ -39,14 +39,26 @@ export const appointmentService = {
       orderBy: {
         preferredDate: 'asc',
       },
-      include: { // Optional: include details of who submitted if that's useful
-        // submittedBy: { select: { id: true, name: true, email: true }}
+      include: {
+        // Include details of the public user who submitted the appointment
+        submittedBy: {
+          select: {
+            id: true,
+            name: true, // Assuming public users might not have a 'name' if not logged in.
+                        // The schema has 'visitorName' on appointment directly.
+                        // If 'submittedBy' refers to a registered user who submitted it, then 'name' is fine.
+                        // Let's assume 'submittedBy' is not used for public forms, rather 'visitorName' is primary.
+                        // If 'submittedBy' *is* used, then 'name' and 'email' from User table are relevant.
+                        // Given the current schema, 'submittedById' can be null.
+                        // For now, let's not include submittedBy here as public submissions might not have a linked user.
+                        // The 'visitorName' and 'email' directly on the appointment are the primary identifiers for public submissions.
+          }
+        }
       }
     });
   },
 
   async verifyAppointment(appointmentId: string, processorUserId: string): Promise<Appointment | null> {
-    // Check if appointment exists and is PENDING
     const appointment = await prisma.appointment.findUnique({ where: { id: appointmentId }});
     if (!appointment) {
         throw new Error(\`Appointment with ID '\${appointmentId}' not found.\`);
@@ -65,7 +77,6 @@ export const appointmentService = {
   },
 
   async rejectAppointment(appointmentId: string, processorUserId: string): Promise<Appointment | null> {
-     // Check if appointment exists and is PENDING
     const appointment = await prisma.appointment.findUnique({ where: { id: appointmentId }});
     if (!appointment) {
         throw new Error(\`Appointment with ID '\${appointmentId}' not found.\`);
@@ -78,7 +89,7 @@ export const appointmentService = {
       where: { id: appointmentId },
       data: {
         status: AppointmentStatus.REJECTED,
-        processedById: processorUserId, // User who rejected it
+        processedById: processorUserId,
       },
     });
   },
@@ -87,21 +98,31 @@ export const appointmentService = {
     return prisma.appointment.findMany({
       where: {
         directorId: directorId,
-        status: AppointmentStatus.VERIFIED, // Only verified appointments for calendar
+        status: AppointmentStatus.VERIFIED,
       },
       orderBy: {
         preferredDate: 'asc',
       },
-      include: { // Optionally include who processed it
-        // processedBy: { select: { id: true, name: true }}
+      include: {
+        // Include who processed (verified) the appointment
+        processedBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true
+          }
+        }
+        // Not including 'submittedBy' for calendar view by default to keep it cleaner,
+        // as 'visitorName' and 'visitorEmail' are primary. Can be added if needed.
       }
     });
   },
 
-  // Helper to get an appointment by ID, used for authorization checks in controller
   async getAppointmentById(appointmentId: string): Promise<Appointment | null> {
     return prisma.appointment.findUnique({
         where: { id: appointmentId }
+        // Consider including director details if needed for auth checks frequently
+        // include: { director: true }
     });
   }
 };
