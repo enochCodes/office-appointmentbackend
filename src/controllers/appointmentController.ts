@@ -1,14 +1,22 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
 import { appointmentService, PublicAppointmentCreationData } from '../services/appointmentService';
-import { AppointmentStatus } from '@prisma/client'; // For later use
+// Assuming req.user will be populated by authentication middleware
+// interface AuthenticatedRequest extends Request {
+//   user?: {
+//     id: string;
+//     // other user properties like role can be added if needed by controller
+//   };
+// }
 
 export const appointmentController = {
   /**
    * Handles submission of a new appointment by a public user.
-   * POST /api/appointments
+   * Expected route: POST /api/appointments
+   * Validation for body params (visitorName, email, preferredDate, directorId)
+   * should be defined in the routes.
    */
-  async submitPublicAppointment(req: Request, res: Response) {
+  async submitPublicAppointment(req: Request, res: Response, next: NextFunction) {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -18,7 +26,7 @@ export const appointmentController = {
       visitorName,
       email,
       phone,
-      preferredDate, // This is a string from JSON, converted to Date by express-validator's toDate()
+      preferredDate,
       message,
       directorId,
     } = req.body;
@@ -27,9 +35,9 @@ export const appointmentController = {
       const appointmentData: PublicAppointmentCreationData = {
         visitorName,
         email,
-        phone: phone || null, // Ensure null if empty string or undefined
-        preferredDate: new Date(preferredDate), // express-validator's toDate() should handle this
-        message: message || null, // Ensure null if empty string or undefined
+        phone: phone || null,
+        preferredDate: new Date(preferredDate), // Ensure this is a valid date string
+        message: message || null,
         directorId,
       };
 
@@ -39,7 +47,10 @@ export const appointmentController = {
         appointment: newAppointment,
       });
     } catch (error: any) {
-      console.error('Error submitting appointment:', error.message);
+      console.error('Error in submitPublicAppointment:', error.message);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
       if (error.message.startsWith('Validation error:') || error.message.startsWith('Database error:')) {
         return res.status(400).json({ message: error.message });
       }
@@ -47,26 +58,136 @@ export const appointmentController = {
     }
   },
 
-  // --- Controller methods for Authenticated Users (to be implemented in Step 10) ---
+  /**
+   * Retrieves unverified appointments for a specific director.
+   * Expected route: GET /api/appointments/unverified/:directorId
+   * Validation for directorId (e.g., isUUID) should be defined in the routes.
+   */
+  async getUnverifiedAppointments(req: Request, res: Response, next: NextFunction) {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
 
-  async getUnverifiedAppointments(req: Request, res: Response) {
-    // Placeholder for GET /api/appointments/unverified/:director_id
-    res.status(501).json({ message: 'Not Implemented Yet' });
+    const { directorId } = req.params;
+
+    try {
+      const appointments = await appointmentService.getUnverifiedAppointmentsForDirector(directorId);
+      return res.status(200).json(appointments);
+    } catch (error: any) {
+      console.error(`Error fetching unverified appointments for director ${directorId}:`, error.message);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      return res.status(500).json({ message: 'Failed to retrieve unverified appointments.' });
+    }
   },
 
-  async verifyAppointment(req: Request, res: Response) {
-    // Placeholder for PUT /api/appointments/:id/verify
-    res.status(501).json({ message: 'Not Implemented Yet' });
+  /**
+   * Verifies an appointment.
+   * Expected route: PUT /api/appointments/:appointmentId/verify
+   * Requires authentication.
+   * Validation for appointmentId (e.g., isUUID) should be defined in the routes.
+   */
+  async verifyAppointment(req: Request, res: Response, next: NextFunction) {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    // @ts-ignore
+    const verifierUserId = req.user?.id;
+    if (!verifierUserId) {
+      return res.status(401).json({ message: 'Unauthorized. User not authenticated.' });
+    }
+
+    const { appointmentId } = req.params;
+
+    try {
+      const updatedAppointment = await appointmentService.verifyAppointment(appointmentId, verifierUserId);
+      return res.status(200).json({
+        message: 'Appointment verified successfully.',
+        appointment: updatedAppointment,
+      });
+    } catch (error: any) {
+      console.error(`Error verifying appointment ${appointmentId} by user ${verifierUserId}:`, error.message);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message.includes('not authorized') || error.message.includes('Unauthorized')) {
+        return res.status(403).json({ message: error.message });
+      }
+      if (error.message.includes('cannot be verified') || error.message.includes('current status is')) {
+        return res.status(400).json({ message: error.message });
+      }
+      return res.status(500).json({ message: 'Failed to verify appointment.' });
+    }
   },
 
-  async rejectAppointment(req: Request, res: Response) {
-    // Placeholder for PUT /api/appointments/:id/reject
-    res.status(501).json({ message: 'Not Implemented Yet' });
+  /**
+   * Rejects an appointment.
+   * Expected route: PUT /api/appointments/:appointmentId/reject
+   * Requires authentication.
+   * Validation for appointmentId (e.g., isUUID) should be defined in the routes.
+   */
+  async rejectAppointment(req: Request, res: Response, next: NextFunction) {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    // @ts-ignore
+    const processorUserId = req.user?.id;
+    if (!processorUserId) {
+      return res.status(401).json({ message: 'Unauthorized. User not authenticated.' });
+    }
+
+    const { appointmentId } = req.params;
+
+    try {
+      const updatedAppointment = await appointmentService.rejectAppointment(appointmentId, processorUserId);
+      return res.status(200).json({
+        message: 'Appointment rejected successfully.',
+        appointment: updatedAppointment,
+      });
+    } catch (error: any) {
+      console.error(`Error rejecting appointment ${appointmentId} by user ${processorUserId}:`, error.message);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message.includes('not authorized') || error.message.includes('Unauthorized')) {
+        return res.status(403).json({ message: error.message });
+      }
+      if (error.message.includes('cannot be rejected') || error.message.includes('current status is')) {
+        return res.status(400).json({ message: error.message });
+      }
+      return res.status(500).json({ message: 'Failed to reject appointment.' });
+    }
   },
 
-  async getCalendar(req: Request, res: Response) {
-    // Placeholder for GET /api/calendar/:director_id
-    res.status(501).json({ message: 'Not Implemented Yet' });
+  /**
+   * Retrieves the calendar (verified appointments) for a specific director.
+   * Expected route: GET /api/calendar/:directorId
+   * Validation for directorId (e.g., isUUID) should be defined in the routes.
+   */
+  async getCalendar(req: Request, res: Response, next: NextFunction) {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { directorId } = req.params;
+
+    try {
+      const appointments = await appointmentService.getCalendarForDirector(directorId);
+      return res.status(200).json(appointments);
+    } catch (error: any) {
+      console.error(`Error fetching calendar for director ${directorId}:`, error.message);
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ message: error.message });
+      }
+      return res.status(500).json({ message: 'Failed to retrieve calendar.' });
+    }
   }
 };
 
