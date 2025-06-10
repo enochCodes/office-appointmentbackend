@@ -1,7 +1,7 @@
 import prisma from '../prismaClient';
 import { Appointment, AppointmentStatus, Prisma, Role, User } from '@prisma/client';
 
-// Type for public appointment creation (from previous step, kept for completeness)
+// Type for public appointment creation
 export type PublicAppointmentCreationData = {
   visitorName: string;
   email: string;
@@ -39,22 +39,10 @@ export const appointmentService = {
       orderBy: {
         preferredDate: 'asc',
       },
-      include: {
-        // Include details of the public user who submitted the appointment
-        submittedBy: {
-          select: {
-            id: true,
-            name: true, // Assuming public users might not have a 'name' if not logged in.
-                        // The schema has 'visitorName' on appointment directly.
-                        // If 'submittedBy' refers to a registered user who submitted it, then 'name' is fine.
-                        // Let's assume 'submittedBy' is not used for public forms, rather 'visitorName' is primary.
-                        // If 'submittedBy' *is* used, then 'name' and 'email' from User table are relevant.
-                        // Given the current schema, 'submittedById' can be null.
-                        // For now, let's not include submittedBy here as public submissions might not have a linked user.
-                        // The 'visitorName' and 'email' directly on the appointment are the primary identifiers for public submissions.
-          }
-        }
-      }
+      // The 'visitorName' and 'email' fields directly on the Appointment record
+      // are the primary source for public submitter details.
+      // 'submittedById' is not populated by createPublicAppointment, so including 'submittedBy'
+      // would result in 'submittedBy: null'.
     });
   },
 
@@ -104,7 +92,6 @@ export const appointmentService = {
         preferredDate: 'asc',
       },
       include: {
-        // Include who processed (verified) the appointment
         processedBy: {
           select: {
             id: true,
@@ -112,8 +99,6 @@ export const appointmentService = {
             role: true
           }
         }
-        // Not including 'submittedBy' for calendar view by default to keep it cleaner,
-        // as 'visitorName' and 'visitorEmail' are primary. Can be added if needed.
       }
     });
   },
@@ -121,8 +106,6 @@ export const appointmentService = {
   async getAppointmentById(appointmentId: string): Promise<Appointment | null> {
     return prisma.appointment.findUnique({
         where: { id: appointmentId }
-        // Consider including director details if needed for auth checks frequently
-        // include: { director: true }
     });
   }
 };
