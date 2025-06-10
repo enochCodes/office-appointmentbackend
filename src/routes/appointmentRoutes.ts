@@ -21,29 +21,33 @@ router.post(
   appointmentController.submitPublicAppointment
 );
 
-// GET /api/appointments/unverified/:director_id
+// POST /api/appointments/cancel/:token - Publicly accessible cancellation route
+router.post(
+  '/cancel/:token',
+  [
+    param('token').isHexadecimal().withMessage('Token must be a hexadecimal string.')
+                 .isLength({ min: 64, max: 64 }).withMessage('Token must be 64 characters long (32 bytes hex).'),
+  ],
+  appointmentController.handlePublicAppointmentCancellation
+);
+
+
+// --- Authenticated Routes ---
 router.get(
   '/unverified/:director_id',
-  authenticateToken,
-  authorizeRole([Role.ADMIN, Role.DIRECTOR, Role.ASSISTANT]),
+  authenticateToken, authorizeRole([Role.ADMIN, Role.DIRECTOR, Role.ASSISTANT]),
   [param('director_id').isCUID().withMessage('Director ID parameter must be a valid CUID.')],
   appointmentController.getUnverifiedAppointments
 );
-
-// PUT /api/appointments/:id/verify
 router.put(
   '/:id/verify',
-  authenticateToken,
-  authorizeRole([Role.ADMIN, Role.DIRECTOR, Role.ASSISTANT]),
+  authenticateToken, authorizeRole([Role.ADMIN, Role.DIRECTOR, Role.ASSISTANT]),
   [param('id').isCUID().withMessage('Appointment ID parameter must be a valid CUID.')],
   appointmentController.verifyAppointment
 );
-
-// PUT /api/appointments/:id/reject
 router.put(
   '/:id/reject',
-  authenticateToken,
-  authorizeRole([Role.ADMIN, Role.DIRECTOR, Role.ASSISTANT]),
+  authenticateToken, authorizeRole([Role.ADMIN, Role.DIRECTOR, Role.ASSISTANT]),
   [param('id').isCUID().withMessage('Appointment ID parameter must be a valid CUID.')],
   appointmentController.rejectAppointment
 );
