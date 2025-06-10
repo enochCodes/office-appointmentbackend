@@ -19,13 +19,15 @@ app.get('/api', (req: Request, res: Response) => {
 // Placeholder for future routes (to be added in subsequent steps)
 import authRoutes from './routes/authRoutes';
 import appointmentRoutes from './routes/appointmentRoutes';
-// import adminRoutes from './routes/adminRoutes';
-// import appointmentRoutes from './routes/appointmentRoutes';
+import adminRoutes from './routes/adminRoutes';
+import calendarRoutes from './routes/calendarRoutes';
+// import appointmentRoutes from './routes/appointmentRoutes'; // This was a pre-existing commented line, can stay or go, let's keep for now.
 
 app.use('/api/auth', authRoutes);
 app.use('/api/appointments', appointmentRoutes);
-// app.use('/api/admin', adminRoutes); // Grouping admin user management under /admin
-// app.use('/api/appointments', appointmentRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/calendar', calendarRoutes);
+// app.use('/api/appointments', appointmentRoutes); // This was a pre-existing commented line, can stay or go, let's keep for now.
 
 
 // Global error handling middleware

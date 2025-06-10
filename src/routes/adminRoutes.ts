@@ -6,11 +6,10 @@ import { Role } from '@prisma/client';
 
 const router = Router();
 
-// Apply authentication and ADMIN role authorization to all routes in this file
 router.use(authenticateToken);
 router.use(authorizeRole([Role.ADMIN]));
 
-// POST /api/admin/users - Create a new user (can be any role including ADMIN, DIRECTOR, ASSISTANT, USER)
+// POST /api/admin/users
 router.post(
   '/users',
   [
@@ -24,23 +23,23 @@ router.post(
   adminController.createUser
 );
 
-// POST /api/admin/directors - Create a director profile for an existing user (who should have DIRECTOR role)
+// POST /api/admin/directors
 router.post(
   '/directors',
   [
-    body('userId').notEmpty().withMessage('User ID is required.').isString().trim(), // .isCUID() if applicable
+    body('userId').notEmpty().withMessage('User ID is required.').isCUID().withMessage('User ID must be a valid CUID.'),
     body('department').notEmpty().withMessage('Department is required.').trim().escape(),
     body('officeLocation').notEmpty().withMessage('Office location is required.').trim().escape(),
   ],
   adminController.createDirector
 );
 
-// POST /api/admin/assistants - Create an assistant profile for an existing user (who should have ASSISTANT role)
+// POST /api/admin/assistants
 router.post(
   '/assistants',
   [
-    body('userId').notEmpty().withMessage('User ID is required.').isString().trim(), // .isCUID() if applicable
-    body('directorId').notEmpty().withMessage('Director ID for linking is required.').isString().trim(), // .isCUID()
+    body('userId').notEmpty().withMessage('User ID is required.').isCUID().withMessage('User ID must be a valid CUID.'),
+    body('directorId').notEmpty().withMessage('Director ID for linking is required.').isCUID().withMessage('Director ID must be a valid CUID.'),
   ],
   adminController.createAssistant
 );
