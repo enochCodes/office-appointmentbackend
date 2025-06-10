@@ -81,11 +81,11 @@ export const adminService = {
     }
 
     // Prevent changing role if target user is the last admin and new role is not ADMIN
-    if (data.role && data.role !== Role.ADMIN && targetUser.role === Role.ADMIN) {
-      if (targetUserId === adminUserId && data.role !== Role.ADMIN) {
-         // This check is more about self-demotion if they are the only admin.
-         // If adminUserId is different, it implies another admin is demoting this one.
-      }
+    if (
+      data.role &&
+      data.role !== Role.ADMIN &&
+      targetUser.role === Role.ADMIN
+    ) {
       const adminCount = await prisma.user.count({ where: { role: Role.ADMIN } });
       if (adminCount <= 1) {
         throw new Error('Operation Forbidden: Cannot change the role of the last administrator.');
