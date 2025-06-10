@@ -108,7 +108,79 @@ export const authService = {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...userWithoutPassword } = user;
     return userWithoutPassword;
+  },
+
+  // Helper to omit password, consistent with adminService
+  _omitPassword(user: User): UserProfile {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  },
+
+  async updateUserProfile(userId: string, data: UserProfileUpdateData): Promise<UserProfile> {
+    // Ensure user exists
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new Error('User not found.'); // Or a more specific error type
+    }
+
+    // Prevent email or role updates through this method
+    if ('email' in data || 'role' in data) {
+      throw new Error('Email and role updates are not permitted through this profile update method.');
+    }
+
+    if (Object.keys(data).length === 0) {
+        throw new Error('No update data provided.');
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: data.name,
+        phone: data.phone,
+      },
+    });
+    return this._omitPassword(updatedUser);
+  },
+
+  async changePassword(userId: string, oldPasswordAttempt: string, newPasswordPlain: string): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.password) {
+      // User not found or password not set (shouldn't happen for existing users)
+      throw new Error('User not found or account improperly configured.');
+    }
+
+    const isOldPasswordCorrect = await bcrypt.compare(oldPasswordAttempt, user.password);
+    if (!isOldPasswordCorrect) {
+      throw new Error('Incorrect old password.');
+    }
+
+    if (!newPasswordPlain || newPasswordPlain.length < 8) {
+        // Basic validation, can be enhanced with complexity rules
+        throw new Error('New password must be at least 8 characters long.');
+    }
+
+    if (oldPasswordAttempt === newPasswordPlain) {
+        throw new Error('New password cannot be the same as the old password.');
+    }
+
+    const newHashedPassword = await bcrypt.hash(newPasswordPlain, SALT_ROUNDS);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: newHashedPassword },
+    });
+    // No return value needed, or could return true/success message
   }
+};
+
+// For self-service profile updates by the user
+export type UserProfileUpdateData = {
+  name?: string;
+  phone?: string | null;
+  // Explicitly exclude email, role, password from this type for self-service updates
+  email?: never;
+  role?: never;
+  password?: never;
 };
 
 export default authService;

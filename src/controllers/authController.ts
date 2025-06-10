@@ -1,8 +1,8 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express'; // Added NextFunction
 import { validationResult } from 'express-validator';
-import authService from '../services/authService';
-import { generateToken } from '../middleware/auth'; // generateToken from auth middleware
-import { Role } from '@prisma/client'; // Import Role
+import authService, { UserProfileUpdateData } from '../services/authService'; // Import UserProfileUpdateData
+import { generateToken } from '../middleware/auth';
+import { Role } from '@prisma/client';
 
 export const authController = {
   async login(req: Request, res: Response) {
@@ -71,6 +71,83 @@ export const authController = {
     } catch (error: any) {
       console.error('GetMe error:', error);
       return res.status(500).json({ message: error.message || 'Server error retrieving user profile.' });
+    }
+  },
+
+  async updateMyProfileHandler(req: Request, res: Response, next: NextFunction) {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const userId = req.user?.id;
+    if (!userId) {
+      // Should be caught by authenticateToken middleware, but good for safety
+      return res.status(401).json({ message: 'Unauthorized: User ID not found in token.' });
+    }
+
+    const { name, phone } = req.body;
+    const updateData: UserProfileUpdateData = {};
+
+    if (name !== undefined) updateData.name = name;
+    if (phone !== undefined) updateData.phone = phone; // handles null or string
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: 'No update data provided (accepted fields: name, phone).' });
+    }
+
+    // Explicitly disallow email/role/password updates via this endpoint in controller too
+    if (req.body.email || req.body.role || req.body.password){
+        return res.status(400).json({ message: 'Email, role, or password updates are not allowed via this endpoint.' });
+    }
+
+    try {
+      const updatedUserProfile = await authService.updateUserProfile(userId, updateData);
+      res.status(200).json({ message: 'Profile updated successfully.', user: updatedUserProfile });
+    } catch (error: any) {
+      console.error(`UpdateMyProfile error for user ${userId}:`, error.message);
+      if (error.message === 'User not found.') { // Specific error from service
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message === 'No update data provided.') { // Specific error from service
+        return res.status(400).json({ message: error.message });
+      }
+      // For other errors from service like "Email and role updates are not permitted..."
+      if (error.message.includes("not permitted")) {
+          return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Failed to update profile due to a server error.' });
+    }
+  },
+
+  async changeMyPasswordHandler(req: Request, res: Response, next: NextFunction) {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized: User ID not found in token.' });
+    }
+
+    const { oldPassword, newPassword } = req.body;
+
+    try {
+      await authService.changePassword(userId, oldPassword, newPassword);
+      res.status(200).json({ message: 'Password changed successfully.' });
+    } catch (error: any) {
+      console.error(`ChangeMyPassword error for user ${userId}:`, error.message);
+      if (error.message === 'User not found or account improperly configured.') {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message === 'Incorrect old password.') {
+        return res.status(400).json({ message: error.message }); // Or 401/403 for security
+      }
+      if (error.message === 'New password must be at least 8 characters long.' || error.message === 'New password cannot be the same as the old password.') {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Failed to change password due to a server error.' });
     }
   }
 };
