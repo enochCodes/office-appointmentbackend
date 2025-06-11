@@ -1,5 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './swaggerConfig'; // Import generated swagger spec
 import prisma from './prismaClient'; // Import prisma client
 
 // Load environment variables from .env file
@@ -20,13 +22,13 @@ app.get('/api', (req: Request, res: Response) => {
 import authRoutes from './routes/authRoutes';
 import appointmentRoutes from './routes/appointmentRoutes';
 import adminRoutes from './routes/adminRoutes';
-// import appointmentRoutes from './routes/appointmentRoutes'; // This was a pre-existing commented line, can stay or go, let's keep for now.
 
 app.use('/api/auth', authRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/admin', adminRoutes);
-// app.use('/api/appointments', appointmentRoutes); // This was a pre-existing commented line, can stay or go, let's keep for now.
 
+// Swagger UI setup
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Global error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

@@ -83,8 +83,10 @@ model Appointment {
   // User (Assistant/Director) who verified/rejected the appointment
   processedBy   User?     @relation("ProcessedByUser", fields: [processedById], references: [id])
   processedById String?   @map("processed_by_id")
+  processedAt   DateTime? // Timestamp for when the appointment was verified/rejected
 
   createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   @@map("appointments")
 }
